@@ -9,7 +9,7 @@ from torchvision.transforms import ToTensor, RandomResizedCrop, RandomHorizontal
 from torch.utils.data import Dataset, DataLoader
 
 
-ROOT_DIR = Path(__file__).parent
+ROOT_DIR = Path(__file__).parent.parent
 DATA_SET = ROOT_DIR / 'dataset' / 'images'
 TRAIN_IMAGES = ROOT_DIR / 'dataset' / 'images' / 'train'
 VALIDATION_IMAGES = ROOT_DIR / 'dataset' / 'images' / 'validation'
@@ -66,13 +66,13 @@ class Data(Dataset):
         return (image, label)
 
 
-training = Data(is_train=True)
+training_data = Data(is_train=True)
 
 for key, val in output_type.items():
     print(f'{key}: {count_type[val]}')
 
 validation_data = Data(is_train=False)
-train_dataloader = DataLoader(training, batch_size=64, shuffle=True)
+train_dataloader = DataLoader(training_data, batch_size=64, shuffle=True)
 validation_dataloader = DataLoader(validation_data, batch_size=64, shuffle=True)
 
 
@@ -163,7 +163,8 @@ def test(data_loader, model, loss_function):
 
 
 epochs = 100
-for t in range(epochs):
-    print(f'Epoch {t + 1}\n-------------------------------')
-    train(train_dataloader, model, loss_fn, optimizer)
-    test(validation_dataloader, model, loss_fn)
+def training():
+    for t in range(epochs):
+        print(f'Epoch {t + 1}\n-------------------------------')
+        train(train_dataloader, model, loss_fn, optimizer)
+        test(validation_dataloader, model, loss_fn)
