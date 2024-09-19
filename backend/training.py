@@ -7,6 +7,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from torchvision.transforms import ToTensor, RandomResizedCrop, RandomHorizontalFlip, RandomVerticalFlip
 from torch.utils.data import Dataset, DataLoader
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
 
 
 ROOT_DIR = Path(__file__).parent.parent
@@ -114,12 +117,12 @@ class TrainModule(nn.Module):
             nn.Linear(512, 7),
             nn.Softmax(dim=1),
             )
-        
+
     def forward(self, x):
         return self.neutral_network(x)
     
 
-learning_rate = 0.0256
+learning_rate = 2.5e-4
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -141,7 +144,7 @@ def train(data_loader, model, loss_function, optimizer):
 
         if batch % 100 == 0:
             loss, current = loss.item(), (batch + 1) * len(X)
-            print(f'loss: {loss:>7f}  [{current:>5d}/{size:>5d}]')
+            print(f'loss: {loss}  [{current}/{size}]')
 
 
 def test(data_loader, model, loss_function):
@@ -159,12 +162,35 @@ def test(data_loader, model, loss_function):
 
         test_loss /= num_batches
         correct /= size
-        print(f'Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f} \n')
+        print(f'Test Error: \n Accuracy: {(100 * correct)}%, Avg loss: {test_loss} \n')
 
 
-epochs = 100
-def training():
-    for t in range(epochs):
-        print(f'Epoch {t + 1}\n-------------------------------')
-        train(train_dataloader, model, loss_fn, optimizer)
-        test(validation_dataloader, model, loss_fn)
+epochs = 50
+for t in range(epochs):
+    print(f'Epoch {t + 1}\n-------------------------------')
+    train(train_dataloader, model, loss_fn, optimizer)
+    test(validation_dataloader, model, loss_fn)
+
+
+y = np.array([])
+predict = np.array([])
+with torch.no_grad():
+    for (X_, y_) in validation_dataloader:
+        preds = model(X_.to(device)).cpu().numpy().argmax(1)
+        labels = y_.cpu().numpy()
+        
+        predict = np.concatenate([predict, preds])
+        y = np.concatenate([y, labels])
+
+# Matriz de confusão
+cm = confusion_matrix(y, predict)
+disp = ConfusionMatrixDisplay(cm)
+disp.plot()
+
+# Salvar a matriz de confusão em um arquivo
+plt.savefig(ROOT_DIR / 'confusion_matrix.png')
+plt.show()
+
+print(classification_report(y, predict, target_names=list(output_type.keys())))
+
+torch.save(model, ROOT_DIR / 'model.pth')
