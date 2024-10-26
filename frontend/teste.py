@@ -11,33 +11,23 @@ class MainWindow(QWidget):
 
         layout = QVBoxLayout()
 
-        #Fazer o botão de seleção de arquivo
-        self.options = ('Selecione uma função','SelecionarArquivo()')
-
-        self.combo = QComboBox()    
-        self.combo.addItems(self.options)
-        self.combo.setFixedSize(400,75)
-        layout.addWidget(self.combo)
-
-
-        btn = QPushButton("Ativar")
+        btn = QPushButton("Selecionar Foto")
         btn.clicked.connect(self.funcao1)
-        btn.setFixedSize(400,100)
+        btn.setFixedSize(300,100)
         layout.addWidget(btn)
 
         #Deixei o textbox aqui como placeholder, depois que pegarmos a foto podemos imprimir o resultado dela aqui
         self.textBox = QTextEdit()
-        self.textBox.setFixedSize(400,200)
+        self.textBox.setFixedSize(300,200)
         layout.addWidget(self.textBox)
         
         layout2 = QHBoxLayout()
-        layout2.addLayout(layout)
-
 
         #em vez de usar esse label aqui devemos colocar pra usar a camera no mesmo espaço, se pegarmos ela no main etcetc
         label = QLabel("Texto")
 
         layout2.addWidget(label)
+        layout2.addLayout(layout)
         self.setLayout(layout2)
 
     def funcao1(self):
