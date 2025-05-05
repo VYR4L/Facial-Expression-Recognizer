@@ -20,7 +20,7 @@ XCeption's Structure:
     - Ends with dense (fully connected) layers for classification.
   
 ## Results:
-Confusion Matrix:
+Confusion Matrix:<br>
 <img align=center src=https://github.com/VYR4L/Facial-Expression-Recognizer/blob/main/old/confusion_matrix_xception.png>
 
 - Happy (class 3): Excellent performance — 1446 correct answers, with few errors. This is in line with the f1-score of 0.79 in the classification report.
