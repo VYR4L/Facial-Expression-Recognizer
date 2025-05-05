@@ -9,6 +9,9 @@ __pycache__/
 # zip files
 *.zip
 
+# Dataset folder
+dataset/
+
 # Distribution / packaging
 .Python
 build/

@@ -11,8 +11,10 @@ from pathlib import Path
 
 torch.serialization.add_safe_globals({'SeparableConv2d': SeparableConv2d})
 
+# Definindo a arquitetura do modelo Xception
 modelo = TrainXception()
 
+# Carregando o modelo treinado
 ROOT_DIR = Path(__file__).parent.parent
 TRAINED_XCEPTION_MODEL = ROOT_DIR / 'training' / 'model_xception.pth'
 
@@ -32,8 +34,18 @@ transform = transforms.Compose([
 ])
 
 
-# Função para detectar e analisar a emoção em uma imagem
 def image_emotion_detection(path_image):
+    '''
+    Função para detectar emoções em uma imagem usando o modelo Xception treinado.
+    A imagem deve conter um rosto humano, e a função irá desenhar um retângulo ao redor do rosto e
+    exibir a emoção detectada.
+
+    params:
+        path_image (str): Caminho para a imagem a ser analisada.
+    returns:
+        result (str): Emoção detectada na imagem.
+
+    '''
     # Carregar a imagem
     image = cv2.imread(path_image)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

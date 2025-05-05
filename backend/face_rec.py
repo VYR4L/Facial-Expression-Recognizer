@@ -10,6 +10,7 @@ torch.serialization.add_safe_globals({'SeparableConv2d': SeparableConv2d})
 # Carregar o modelo
 model = TrainXception()
 
+# Carregar o modelo treinado
 ROOT_DIR = Path(__file__).parent.parent
 TRAINED_XCEPTION_MODEL = ROOT_DIR / 'training' / 'model_xception.pth'
 
@@ -35,8 +36,15 @@ cap = cv2.VideoCapture(0)
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 
-# Função para capturar o frame e retornar o frame com a emoção detectada
 def capture_frame():
+    '''
+    Função para capturar um frame da webcam e detectar emoções.
+    A função retorna o frame com a emoção detectada desenhada sobre ele.
+    Se nenhum rosto for detectado, retorna None.
+
+    returns:
+        frame (numpy.ndarray): Frame da webcam com a emoção detectada desenhada sobre ele.
+    '''
     ret, frame = cap.read()
     if not ret:
         return None
