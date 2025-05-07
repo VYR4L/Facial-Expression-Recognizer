@@ -9,6 +9,7 @@ from torchvision.transforms import ToTensor, RandomResizedCrop, RandomHorizontal
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.metrics import classification_report
+from utils.focal_loss import FocalLoss
 
 
 # Definindo o diretório raiz e os caminhos para os conjuntos de dados de treinamento e validação
@@ -136,7 +137,7 @@ class SeparableConv2d(nn.Module):
         params:
             x (Tensor): entrada da camada.
         returns:
-            Tensor: saída da camada.
+            Tensor: saida da camada.
         '''
         x = self.depthwise(x)
         x = self.pointwise(x)
@@ -144,28 +145,11 @@ class SeparableConv2d(nn.Module):
     
 
 class XceptionCNN(nn.Module):
-    '''
-    Implementação da arquitetura Xception, que é uma rede neural convolucional profunda.
-    A arquitetura Xception é baseada em convoluções separáveis em profundidade,
-    que são uma combinação deconvolução de profundidade     e convolução ponto a ponto.
-    A arquitetura é composta por três partes principais: Entry Flow, Middle Flow e Exit Flow.
-    Cada parte contém blocos de convolução separável, seguidos por camadas de normalização em lote e
-    funções de ativação ReLU.
-
-    A saída da arquitetura é uma camada totalmente conectada que produz a classificação final.
-    '''
     def __init__(self, num_classes=7):
-        '''
-        Inicializa a classe XceptionCNN.
-        Define a arquitetura da rede neural, que consiste em várias camadas convolucionais,
-        normalização em lote e funções de ativação ReLU.
-
-        params:
-            num_classes (int): número de classes de saída.
-        '''
         super().__init__()
-        self.neural_network = nn.Sequential(
-            # Entry Flow
+        
+        # Entry Flow
+        self.entry_flow = nn.Sequential(
             nn.Conv2d(1, 32, 3, stride=2, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
@@ -176,7 +160,6 @@ class XceptionCNN(nn.Module):
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(3, stride=2, padding=1),
-            
             SeparableConv2d(128, 256),
             nn.BatchNorm2d(256),
             nn.ReLU(),
@@ -184,19 +167,23 @@ class XceptionCNN(nn.Module):
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(3, stride=2, padding=1),
-            
-            # Middle Flow
-            # TODO atualizar para repetir o bloco 8 vezes
-            nn.ReLU(),
-            SeparableConv2d(256, 256),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            SeparableConv2d(256, 256),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.MaxPool2d(3, stride=2, padding=1),
-            
-            # Exit Flow
+        )
+        
+        # Middle Flow
+        middle_flow = []
+        for _ in range(8):  # Repetir o bloco 8 vezes
+            middle_flow.extend([
+                nn.ReLU(),
+                SeparableConv2d(256, 256),
+                nn.BatchNorm2d(256),
+                nn.ReLU(),
+                SeparableConv2d(256, 256),
+                nn.BatchNorm2d(256),
+            ])
+        self.middle_flow = nn.Sequential(*middle_flow)
+        
+        # Exit Flow
+        self.exit_flow = nn.Sequential(
             SeparableConv2d(256, 728),
             nn.BatchNorm2d(728),
             nn.ReLU(),
@@ -204,7 +191,6 @@ class XceptionCNN(nn.Module):
             nn.BatchNorm2d(1024),
             nn.ReLU(),
             nn.MaxPool2d(3, stride=2, padding=1),
-            
             SeparableConv2d(1024, 1536),
             nn.BatchNorm2d(1536),
             nn.ReLU(),
@@ -214,20 +200,13 @@ class XceptionCNN(nn.Module):
             nn.AdaptiveAvgPool2d((1, 1)),
         )
         
+        # Fully Connected Layer
         self.fc = nn.Linear(2048, num_classes)
 
     def forward(self, x):
-        '''
-        Função de passagem para frente da arquitetura Xception.
-        A entrada passa por várias camadas convolucionais, normalização em lote e funções de ativação ReLU.
-        A saída é achatada e passada por uma camada totalmente conectada para produzir a classificação final.
-
-        params:
-            x (Tensor): entrada da rede neural.
-        returns:
-            Tensor: saída da rede neural.
-        '''
-        x = self.neural_network(x)
+        x = self.entry_flow(x)
+        x = self.middle_flow(x)
+        x = self.exit_flow(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
@@ -275,7 +254,7 @@ if __name__ == '__main__':
 
     # Definir o número de classes de saída
     model = TrainXception().to(device)
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = FocalLoss(gamma=2.0, alpha=0.25).to(device) # Focal Loss
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 
