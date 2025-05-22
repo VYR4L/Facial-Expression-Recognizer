@@ -51,9 +51,9 @@ Classification report:
 ### For the training:
 1. Download the following Kaggle DataSet: **<https://www.kaggle.com/datasets/jonathanoheix/face-expression-recognition-dataset/data>**;
 2. Extract it and make sure the path is right. You can test it using<br><code>print(DATA_SET||TRAIN_IMAGES||VALIDATION_IMAGES)</code>;
-3. Install the dependecies through<br><code>pip install -r requirements.txt</code>
-
-4. Run <code>python training_xception.py</code> and wait 'til complete. Make sure you're in the right folder.
+3. Install PyTorch from its official website: **<https://pytorch.org/>**
+4. Install the dependecies through: <br><code>pip install -r requirements.txt</code>
+5. Run <code>python training_xception.py</code> and wait 'til complete. Make sure you're in the right folder.
 
 ### For the aplication:
 1. Make sure all dependencies are installed. If you haven't already done so, you can do so by running <code>pip install -r requirements.txt</code>

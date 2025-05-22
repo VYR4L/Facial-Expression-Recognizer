@@ -5,7 +5,7 @@ from torch import nn
 from PIL import Image
 from pathlib import Path
 import matplotlib.pyplot as plt
-from torchvision.transforms import ToTensor, RandomResizedCrop, RandomHorizontalFlip, RandomVerticalFlip
+from torchvision.transforms import ToTensor, RandomResizedCrop, RandomHorizontalFlip, RandomVerticalFlip, ColorJitter, RandomRotation, Lambda
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.metrics import classification_report
@@ -60,6 +60,9 @@ class Data(Dataset):
                                     scale=(0.8, 1),
                                     ratio=(0.5, 1)),
                                 RandomHorizontalFlip(),
+                                RandomRotation(10),
+                                ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+                                Lambda(lambda x: x + 0.02 * torch.randn_like(x)),
                                 RandomVerticalFlip(),
         )
 
@@ -145,28 +148,72 @@ class SeparableConv2d(nn.Module):
     
 
 class XceptionCNN(nn.Module):
+    '''
+    Classe para a arquitetura XceptionCNN.
+    A classe herda de nn.Module do PyTorch e implementa os métodos __init__ e forward.
+    A arquitetura Xception é uma rede neural convolucional profunda que utiliza convoluções separáveis
+    para melhorar a eficiência computacional e reduzir o número de parâmetros.
+
+    A arquitetura é composta por três partes principais: Entry Flow, Middle Flow e Exit Flow.
+    A Entry Flow é responsável por extrair características iniciais da imagem de entrada.
+    O Middle Flow é responsável por refinar as características extraídas e o Exit Flow é responsável
+    por gerar a saída final da rede.
+
+    Hiperparâmetros:
+        - Tamanho do kernel: 3x3
+        - Tamanho da imagem de entrada: 48x48
+        - Tamanho do passo: 1
+        - Preenchimento: 1
+        - Número de canais de entrada: 1 (imagem em escala de cinza)
+        - Número de canais de saída: 7 (emoções)
+        - Número de filtros: 32, 64, 128, 256, 728, 1024, 1536, 2048
+        - Número de filtros na camada totalmente conectada: 2048
+        - Número de filtros na camada totalmente conectada: 7 (emoções)
+        - Função de ativação: ReLU
+        - Função de perda: Focal Loss
+        - Otimizador: Adam
+        - Taxa de aprendizado: 2.5e-4
+        - Número de épocas: 50
+        - Tamanho do lote: 64
+        - Tamanho do lote de validação: 64
+        - Tamanho do lote de treinamento: 64
+        - Tamanho do lote de teste: 64
+
+    Número de camadas ocultas:
+        - Entry Flow: 5 camadas convolucionais
+        - Middle Flow: 8 blocos de convolução separável (16 camadas convolucionais)
+        - Exit Flow: 4 camadas convolucionais
+
+    Número de camadas totalmente conectadas:
+        - 1 camada totalmente conectada
+
+    Número de classes de saída:
+        - 7 classes (emoções)
+
+
+    '''
     def __init__(self, num_classes=7):
         super().__init__()
         
         # Entry Flow
         self.entry_flow = nn.Sequential(
-            nn.Conv2d(1, 32, 3, stride=2, padding=1),
+            nn.Conv2d(1, 32, 3, stride=1, padding=1),  # 1
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.Conv2d(32, 64, 3, padding=1),
+            nn.Conv2d(32, 64, 3, padding=1),  # 2
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            SeparableConv2d(64, 128),
+            SeparableConv2d(64, 128),  # 3
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.MaxPool2d(3, stride=2, padding=1),
-            SeparableConv2d(128, 256),
+            nn.MaxPool2d(3, stride=1, padding=1),
+            SeparableConv2d(128, 256),  # 4
             nn.BatchNorm2d(256),
             nn.ReLU(),
-            SeparableConv2d(256, 256),
+            SeparableConv2d(256, 256),  # 5
             nn.BatchNorm2d(256),
             nn.ReLU(),
-            nn.MaxPool2d(3, stride=2, padding=1),
+            nn.MaxPool2d(3, stride=1, padding=1),
         )
         
         # Middle Flow
@@ -174,34 +221,34 @@ class XceptionCNN(nn.Module):
         for _ in range(8):  # Repetir o bloco 8 vezes
             middle_flow.extend([
                 nn.ReLU(),
-                SeparableConv2d(256, 256),
+                SeparableConv2d(256, 256),  # 1
                 nn.BatchNorm2d(256),
                 nn.ReLU(),
-                SeparableConv2d(256, 256),
+                SeparableConv2d(256, 256),  # 2
                 nn.BatchNorm2d(256),
             ])
         self.middle_flow = nn.Sequential(*middle_flow)
         
         # Exit Flow
         self.exit_flow = nn.Sequential(
-            SeparableConv2d(256, 728),
+            SeparableConv2d(256, 728),  # 1
             nn.BatchNorm2d(728),
             nn.ReLU(),
-            SeparableConv2d(728, 1024),
+            SeparableConv2d(728, 1024),  # 2
             nn.BatchNorm2d(1024),
             nn.ReLU(),
-            nn.MaxPool2d(3, stride=2, padding=1),
-            SeparableConv2d(1024, 1536),
+            nn.MaxPool2d(3, stride=1, padding=1),
+            SeparableConv2d(1024, 1536), # 3
             nn.BatchNorm2d(1536),
             nn.ReLU(),
-            SeparableConv2d(1536, 2048),
+            SeparableConv2d(1536, 2048),  # 4
             nn.BatchNorm2d(2048),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1)),
         )
         
         # Fully Connected Layer
-        self.fc = nn.Linear(2048, num_classes)
+        self.fc = nn.Linear(2048, num_classes)  # 1
 
     def forward(self, x):
         x = self.entry_flow(x)
