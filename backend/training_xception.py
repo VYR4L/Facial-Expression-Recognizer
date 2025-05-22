@@ -1,5 +1,6 @@
 import glob
 import torch
+import argparse
 import numpy as np
 from torch import nn
 from PIL import Image
@@ -293,9 +294,15 @@ class TrainXception(nn.Module):
 
 
 if __name__ == '__main__':
-    # Xception Convolutional Neural Network Training
-    learning_rate = 2.5e-4 # Taxa de aprendizado
+    # Passagem de argumentos para o script
+    parser = argparse.ArgumentParser(description='Xception Convolutional Neural Network Training')
+    parser.add_argument('--epochs', type=int, default=50, help='Número de épocas para treinamento')
+    parser.add_argument('--learning_rate', type=float, default=2.5e-4, help='Taxa de aprendizado')
+    args = parser.parse_args()
+    epochs = args.epochs
+    learning_rate = args.learning_rate
 
+    # Xception Convolutional Neural Network Training
     # Definir o dispositivo para GPU se disponível, caso contrário, usar CPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -361,7 +368,6 @@ if __name__ == '__main__':
             correct /= size
             print(f'Test Error: \n Accuracy: {(100 * correct)}%, Avg loss: {test_loss} \n')
 
-    epochs = 50
     for t in range(epochs):
         print(f'Epoch {t + 1}\n-------------------------------')
         train(train_dataloader, model, loss_fn, optimizer)
