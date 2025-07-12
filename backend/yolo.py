@@ -1,6 +1,7 @@
 import glob
 import torch
 import argparse
+import numpy as np
 from torch import nn
 from PIL import Image
 from pathlib import Path
@@ -135,7 +136,7 @@ class Darknet53Small(nn.Module):
         super().__init__()
         self.layers = nn.ModuleList([
             nn.Sequential(
-                nn.Conv2d(3, 32, 3, 1, 1, bias=False),
+                nn.Conv2d(1, 32, 3, 1, 1, bias=False),
                 nn.BatchNorm2d(32),
                 nn.LeakyReLU(0.1)
             ),
@@ -172,7 +173,8 @@ class Darknet53Small(nn.Module):
                 nn.LeakyReLU(0.1)
             ),
             ResidualBlock(1024),
-            ResidualBlock(1024)
+            ResidualBlock(1024),
+            nn.AdaptiveAvgPool2d((1, 1)),
         ])
 
     def forward(self, x):
@@ -237,60 +239,34 @@ class TrainYolo(nn.Module):
         return loss
     
 
-def train(model, train_loader, criterion, optimizer, num_epochs=10):
-    '''
-    Função para treinar o modelo Yolo.
-    params:
-        model (nn.Module): modelo Yolo a ser treinado.
-        train_loader (DataLoader): DataLoader com os dados de treinamento.
-        criterion (nn.Module): função de perda a ser usada.
-        optimizer (torch.optim.Optimizer): otimizador a ser usado.
-        num_epochs (int): número de épocas para treinamento.
-    '''
+def train(train_loader, model, loss_function, optimizer, device):
+    size = len(train_loader.dataset)
     model.train()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
-    criterion.to(device)
-    optimizer.to(device)
-
-    for epoch in range(num_epochs):
-        total_loss = 0.0
-        for images, labels in train_loader:
-            images, labels = images.to(device), labels.to(device)
-            loss = model(images, labels)
-            total_loss += loss.item()
-        
-        avg_loss = total_loss / len(train_loader)
-        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}')
+    for batch, (X, y) in enumerate(train_loader):
+        X, y = X.to(device), y.to(device)
+        preds = model(X, y)
+        loss = preds  # TrainYolo já retorna o loss
+        if batch % 100 == 0:
+            loss_val = loss.item()
+            current = (batch + 1) * len(X)
+            print(f'loss: {loss_val}  [{current}/{size}]')
 
 
-def evaluate(model, validation_loader):
-    '''
-    Função para avaliar o modelo Yolo.
-    params:
-        model (nn.Module): modelo Yolo a ser avaliado.
-        validation_loader (DataLoader): DataLoader com os dados de validação.
-    '''
+def test(val_loader, model, loss_function, device):
+    size = len(val_loader.dataset)
+    num_batches = len(val_loader)
+    test_loss, correct = 0, 0
     model.eval()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
-
-    all_labels = []
-    all_preds = []
-
     with torch.no_grad():
-        for images, labels in validation_loader:
-            images, labels = images.to(device), labels.to(device)
-            outputs = model(images)
-            _, preds = torch.max(outputs, 1)
-            all_labels.extend(labels.cpu().numpy())
-            all_preds.extend(preds.cpu().numpy())
-
-    print(classification_report(all_labels, all_preds, target_names=list(output_type.keys())))
-    cm = confusion_matrix(all_labels, all_preds)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=list(output_type.keys()))
-    disp.plot(cmap=plt.cm.Blues)
-    plt.show()
+        for X, y in val_loader:
+            X, y = X.to(device), y.to(device)
+            outputs = model.model(X)  # model é TrainYolo, model.model é Yolo
+            loss = loss_function(outputs, y)
+            test_loss += loss.item()
+            correct += (outputs.argmax(1) == y).type(torch.float).sum().item()
+    test_loss /= num_batches
+    correct /= size
+    print(f'Test Error: \n Accuracy: {(100 * correct):.2f}%, Avg loss: {test_loss:.4f}\n')
 
 
 def main():
@@ -299,12 +275,37 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate for optimizer')
     args = parser.parse_args()
 
-    model = Yolo(num_classes=len(output_type))
-    criterion = nn.CrossEntropyLoss()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = Yolo(num_classes=len(output_type)).to(device)
+    criterion = nn.CrossEntropyLoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+    train_yolo = TrainYolo(model, criterion, optimizer).to(device)
 
-    train_yolo = TrainYolo(model, criterion, optimizer)
+    for t in range(args.num_epochs):
+        print(f'Epoch {t + 1}\n-------------------------------')
+        train(train_dataloader, train_yolo, criterion, optimizer, device)
+        test(validation_dataloader, train_yolo, criterion, device)
 
-    train(train_yolo, train_dataloader, criterion, optimizer, num_epochs=args.num_epochs)
-    evaluate(model, validation_dataloader)
+    # Avaliação final e matriz de confusão
+    y_true = np.array([])
+    y_pred = np.array([])
+    model.eval()
+    with torch.no_grad():
+        for X, y in validation_dataloader:
+            X = X.to(device)
+            outputs = model(X)
+            preds = outputs.cpu().numpy().argmax(1)
+            labels = y.cpu().numpy()
+            y_pred = np.concatenate([y_pred, preds])
+            y_true = np.concatenate([y_true, labels])
 
+    cm = confusion_matrix(y_true, y_pred)
+    disp = ConfusionMatrixDisplay(cm, display_labels=list(output_type.keys()))
+    disp.plot()
+    plt.savefig(ROOT_DIR / 'confusion_matrix_yolo.png')
+    print(classification_report(y_true, y_pred, target_names=list(output_type.keys())))
+
+    torch.save(model.state_dict(), ROOT_DIR / 'model_yolo.pth')
+
+if __name__ == '__main__':
+    main()

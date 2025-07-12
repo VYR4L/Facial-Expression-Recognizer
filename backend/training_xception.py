@@ -6,7 +6,7 @@ from torch import nn
 from PIL import Image
 from pathlib import Path
 import matplotlib.pyplot as plt
-from torchvision.transforms import ToTensor, RandomResizedCrop, RandomHorizontalFlip, RandomVerticalFlip, ColorJitter, RandomRotation, Lambda
+from torchvision.transforms import ToTensor, RandomResizedCrop, RandomHorizontalFlip, RandomVerticalFlip
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.metrics import classification_report
@@ -61,9 +61,6 @@ class Data(Dataset):
                                     scale=(0.8, 1),
                                     ratio=(0.5, 1)),
                                 RandomHorizontalFlip(),
-                                RandomRotation(10),
-                                ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-                                Lambda(lambda x: x + 0.02 * torch.randn_like(x)),
                                 RandomVerticalFlip(),
         )
 
@@ -117,7 +114,7 @@ class SeparableConv2d(nn.Module):
 
     A classe herda de nn.Module do PyTorch e implementa os métodos __init__ e forward.
     '''
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=2, padding=1):
         '''
         Inicializa a classe SeparableConv2d.
         Define os parâmetros de entrada e saída, o tamanho do kernel, o passo e o preenchimento.
@@ -198,7 +195,7 @@ class XceptionCNN(nn.Module):
         
         # Entry Flow
         self.entry_flow = nn.Sequential(
-            nn.Conv2d(1, 32, 3, stride=1, padding=1),  # 1
+            nn.Conv2d(1, 32, 3, stride=2, padding=1),  # 1
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.Conv2d(32, 64, 3, padding=1),  # 2
@@ -207,14 +204,14 @@ class XceptionCNN(nn.Module):
             SeparableConv2d(64, 128),  # 3
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.MaxPool2d(3, stride=1, padding=1),
+            nn.MaxPool2d(3, stride=2, padding=1),
             SeparableConv2d(128, 256),  # 4
             nn.BatchNorm2d(256),
             nn.ReLU(),
             SeparableConv2d(256, 256),  # 5
             nn.BatchNorm2d(256),
             nn.ReLU(),
-            nn.MaxPool2d(3, stride=1, padding=1),
+            nn.MaxPool2d(3, stride=2, padding=1),
         )
         
         # Middle Flow
@@ -238,7 +235,7 @@ class XceptionCNN(nn.Module):
             SeparableConv2d(728, 1024),  # 2
             nn.BatchNorm2d(1024),
             nn.ReLU(),
-            nn.MaxPool2d(3, stride=1, padding=1),
+            nn.MaxPool2d(3, stride=2, padding=1),
             SeparableConv2d(1024, 1536), # 3
             nn.BatchNorm2d(1536),
             nn.ReLU(),
