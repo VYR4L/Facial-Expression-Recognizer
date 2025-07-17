@@ -1,5 +1,5 @@
 1. **Balanceamento de Classes**
-   * **Usando pesos na função de perda:** Calcule os pesos das classes e passe para o CrossEntropyLoss:
+   * **Usando pesos na função de perda:** Calcular os pesos das classes e passar para o CrossEntropyLoss:
     ```python
     from collections import Counter
     labels = [output_type[Path(path).parts[-2]] for path in training_data.path_file]
@@ -11,7 +11,7 @@
     ```
 
 2. **Aprimorar Arquitetura**
-   *  **Adicionando Dropout:** Inclua camadas de Dropout após as ativações da sua fc_layer:
+   *  **Adicionando Dropout:** Incluir camadas de Dropout após as ativações da fc_layer:
   ```python
     self.fc_layer = nn.Sequential(
         nn.Linear(1024 * 1 * 1, 1024),
@@ -20,7 +20,7 @@
         nn.Linear(1024, num_classes)
     )
   ```
-   * **Aumentando a capacidade:**  Adicione mais blocos residuais ou aumente o número de filtros nas camadas convolucionais do backbone.
+   * **Aumentando a capacidade:**  Adicionar mais blocos residuais ou aumentar o número de filtros nas camadas convolucionais do backbone.
 
 3. **Early Stopping e Regularização**
     * **Regularização L2 (weight_decay):** Adicione o parâmetro weight_decay ao otimizador:
@@ -28,7 +28,7 @@
         optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=1e-4)
     ```
 
-    * **Early Stopping:** Implemente um controle simples no loop de treino:
+    * **Early Stopping:** Implementar um controle simples no loop de treino:
     ```python
         # ...existing code...
     best_loss = float('inf')
