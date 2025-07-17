@@ -15,64 +15,8 @@ from torch.optim.lr_scheduler import StepLR
 from torch.nn import CrossEntropyLoss
 from torch.autograd import Variable
 from torch.nn.functional import softmax
+from utils.dataset import Data, output_type, OUTPUT_DIR, count_type
 
-
-ROOT_DIR = Path(__file__).parent.parent
-DATA_SET = ROOT_DIR / 'dataset' / 'images'
-TRAIN_IMAGES = ROOT_DIR / 'dataset' / 'images' / 'train'
-VALIDATION_IMAGES = ROOT_DIR / 'dataset' / 'images' / 'validation'
-
-output_type = {}
-count_type = [0 for i in range(7)]
-
-for index, val in enumerate(glob.glob(str(TRAIN_IMAGES / '*'))):
-    output_type[Path(val).parts[-1]] = index
-
-
-class Data(Dataset):
-    def __init__(self, is_train=True):
-        self.is_train = is_train
-        data_type = 'train' if is_train else 'validation'
-        
-        self.path_file = glob.glob(str(DATA_SET / data_type / '*' / '*'))
-
-        if is_train:
-            temp_data = []
-            for i in range(9):
-                self.path_file += glob.glob(str(DATA_SET / data_type / 'disgust' / '*'))
-            
-            for type in output_type:
-                counter = 0
-                for path in self.path_file:
-                    path_parts = Path(path).parts
-                    if len(path_parts) > 6 and path_parts[-2] == type:
-                        counter += 1
-                        temp_data.append(path)
-                        count_type[output_type[type]] += 1
-            self.path_file = temp_data
-
-        self.transform = ToTensor()
-        self.data = nn.Sequential(
-                                RandomResizedCrop((48, 48),
-                                    scale=(0.8, 1),
-                                    ratio=(0.5, 1)),
-                                RandomHorizontalFlip(),
-                                RandomVerticalFlip(),
-        )
-
-    def __len__(self):
-        return len(self.path_file)
-
-    def __getitem__(self, idx):
-        image_path = self.path_file[idx]
-        image = Image.open(image_path)
-        label = output_type[Path(image_path).parts[-2]]
-        image = self.transform(image)
-        if self.is_train:
-            image = self.data(image)
-        
-        return (image, label)
-    
 
 training_data = Data(is_train=True)
 
@@ -191,7 +135,7 @@ cm = confusion_matrix(y, predictions)
 disp = ConfusionMatrixDisplay(cm)
 disp.plot()
 
-plt.savefig(ROOT_DIR / 'confusion_matrix_inception.png')
+plt.savefig(OUTPUT_DIR / 'confusion_matrix_inception.png')
 print(classification_report(y, predictions, target_names=list(output_type.keys()))) 
 
-torch.save(model, ROOT_DIR / 'inception_model.pth')
+torch.save(model, OUTPUT_DIR / 'inception_model.pth')
