@@ -19,8 +19,8 @@ training_data = Data(is_train=True)
 
 # Carregar os dados de validação
 validation_data = Data(is_train=False)
-train_dataloader = DataLoader(training_data, batch_size=64, shuffle=True)
-validation_dataloader = DataLoader(validation_data, batch_size=64, shuffle=True)
+train_dataloader = DataLoader(training_data, batch_size=32, shuffle=True)
+validation_dataloader = DataLoader(validation_data, batch_size=32, shuffle=True)
 
 
 # Bloco residual usado na Darknet-53 (YOLOv3)
@@ -101,6 +101,7 @@ class Yolo(nn.Module):
         self.fc_layer = nn.Sequential(
             nn.Linear(1024 * 1 * 1, 1024),
             nn.ReLU(),
+            nn.Dropout(0.5),
             nn.Linear(1024, num_classes)
         )
 
