@@ -12,6 +12,15 @@ __pycache__/
 # Dataset folder
 dataset/
 
+#Trained data
+*.pth
+
+# Results folder
+results/
+
+# Bat files
+*.bat
+
 # Distribution / packaging
 .Python
 build/
