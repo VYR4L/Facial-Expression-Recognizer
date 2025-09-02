@@ -1,26 +1,4 @@
-import glob
-import torch
-import argparse
-import numpy as np
 from torch import nn
-from PIL import Image
-from pathlib import Path
-import matplotlib.pyplot as plt
-from utils.focal_loss import FocalLoss
-from torchvision.transforms import ToTensor, RandomResizedCrop, RandomHorizontalFlip, RandomRotation, GaussianBlur, RandomVerticalFlip
-from torch.utils.data import DataLoader, Dataset
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-from sklearn.metrics import classification_report
-from utils.dataset import Data, output_type, OUTPUT_DIR
-
-
-# Carregar os dados de treinamento e validação    
-training_data = Data(is_train=True)
-
-# Carregar os dados de validação
-validation_data = Data(is_train=False)
-train_dataloader = DataLoader(training_data, batch_size=64, shuffle=True)
-validation_dataloader = DataLoader(validation_data, batch_size=64, shuffle=True)
 
 
 # Bloco residual usado na Darknet-53 (YOLOv3)
@@ -139,100 +117,18 @@ class TrainYolo(nn.Module):
     Classe para treinar o modelo Yolo.
     Esta classe herda de nn.Module e implementa o método forward para treinar o modelo.
     '''
-    def __init__(self, model, criterion, optimizer):
+    def __init__(self, model):
         super().__init__()
         self.model = model
-        self.criterion = criterion
-        self.optimizer = optimizer
 
-    def forward(self, x, y):
+    def forward(self, x):
         '''
-        Método de treinamento do modelo Yolo.
+        Função de passagem para frente da classe TrainYolo.
+        A entrada passa pela arquitetura Yolo e retorna a saída do modelo.
         params:
-            x (torch.Tensor): tensor de entrada com as imagens.
-            y (torch.Tensor): tensor de rótulos correspondentes.
+            x (Tensor): entrada da rede neural.
         returns:
-            torch.Tensor: perda calculada pelo critério.
+            Tensor: saída da rede neural.
         '''
-        outputs = self.model(x)
-        loss = self.criterion(outputs, y)
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-        return loss
-    
-
-def train(train_loader, model, loss_function, optimizer, device):
-    size = len(train_loader.dataset)
-    model.train()
-    for batch, (X, y) in enumerate(train_loader):
-        X, y = X.to(device), y.to(device)
-        preds = model(X, y)
-        loss = preds  # TrainYolo já retorna o loss
-        if batch % 100 == 0:
-            loss_val = loss.item()
-            current = (batch + 1) * len(X)
-            print(f'loss: {loss_val}  [{current}/{size}]')
-
-
-def test(val_loader, model, loss_function, device):
-    size = len(val_loader.dataset)
-    num_batches = len(val_loader)
-    test_loss, correct = 0, 0
-    model.eval()
-    with torch.no_grad():
-        for X, y in val_loader:
-            X, y = X.to(device), y.to(device)
-            outputs = model.model(X)  # model é TrainYolo, model.model é Yolo
-            loss = loss_function(outputs, y)
-            test_loss += loss.item()
-            correct += (outputs.argmax(1) == y).type(torch.float).sum().item()
-    test_loss /= num_batches
-    correct /= size
-    print(f'Test Error: \n Accuracy: {(100 * correct):.2f}%, Avg loss: {test_loss:.4f}\n')
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Train YOLOv3 on facial emotion dataset')
-    parser.add_argument('--num_epochs', type=int, default=50, help='Number of epochs for training')
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate for optimizer')
-    parser.add_argument('--criterion', type=str, default='cross_entropy', choices=['cross_entropy', 'focal_loss'], help='Loss function to use')
-    args = parser.parse_args()
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = Yolo(num_classes=len(output_type)).to(device)
-    if args.criterion == 'focal_loss':
-        criterion = FocalLoss(alpha=1.0, gamma=2.0, reduction='mean').to(device)
-    else:
-        criterion = nn.CrossEntropyLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
-    train_yolo = TrainYolo(model, criterion, optimizer).to(device)
-
-    for t in range(args.num_epochs):
-        print(f'Epoch {t + 1}\n-------------------------------')
-        train(train_dataloader, train_yolo, criterion, optimizer, device)
-        test(validation_dataloader, train_yolo, criterion, device)
-
-    # Avaliação final e matriz de confusão
-    y_true = np.array([])
-    y_pred = np.array([])
-    model.eval()
-    with torch.no_grad():
-        for X, y in validation_dataloader:
-            X = X.to(device)
-            outputs = model(X)
-            preds = outputs.cpu().numpy().argmax(1)
-            labels = y.cpu().numpy()
-            y_pred = np.concatenate([y_pred, preds])
-            y_true = np.concatenate([y_true, labels])
-
-    cm = confusion_matrix(y_true, y_pred)
-    disp = ConfusionMatrixDisplay(cm, display_labels=list(output_type.keys()))
-    disp.plot()
-    plt.savefig(OUTPUT_DIR / 'confusion_matrix_yolo.png')
-    print(classification_report(y_true, y_pred, target_names=list(output_type.keys())))
-
-    torch.save(model.state_dict(), OUTPUT_DIR / 'model_yolo.pth')
-
-if __name__ == '__main__':
-    main()
+        x = self.model(x)
+        return x
